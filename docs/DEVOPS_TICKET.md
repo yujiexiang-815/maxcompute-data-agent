@@ -64,11 +64,15 @@ MCP_AUTH_TOKEN=<DevOps_Generated_Bearer_Token>
 ---
 
 ### 3. 项目代码与交付物清单 (Artifacts & Files)
-项目代码中已包含完善的容器化与配置支持：
-- `server.py`：服务启动入口，支持命令：`python server.py --host 0.0.0.0 --port 8000 --transport sse`
-- `Dockerfile` / `docker-compose.yml`：基于 `python:3.11-slim` 构建的容器配置
-- `requirements.txt`：完整的 Python 依赖清单（包含 `mcp`, `pyodps`, `uvicorn`, `starlette` 等）
-- `guardrails.py` & `semantic_layer.yaml`：内置的成本熔断与安全查询护栏
+- **代码仓库 (Git Repository)**：
+  - **URL (HTTPS)**：`https://github.com/yujiexiang-815/maxcompute-data-agent.git`
+  - **URL (SSH)**：`git@github.com:yujiexiang-815/maxcompute-data-agent.git`
+  - **默认分支**：`main`
+- **核心文件与容器配置**：
+  - `server.py`：服务启动入口，支持命令：`python server.py --host 0.0.0.0 --port 8000 --transport sse`
+  - `Dockerfile` / `docker-compose.yml`：基于 `python:3.11-slim` 构建的容器配置
+  - `requirements.txt`：完整的 Python 依赖清单（包含 `mcp`, `pyodps`, `uvicorn`, `starlette` 等）
+  - `guardrails.py` & `semantic_layer.yaml`：内置的成本熔断与安全查询护栏
 
 ---
 
