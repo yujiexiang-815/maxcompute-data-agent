@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "maxcompute-data-agent": {
+      "type": "local",
+      "command": [
+        "/usr/local/bin/python3",
+        "/Users/yujiexiang/Documents/data_agent/server.py",
+        "--transport",
+        "stdio"
+      ],
+      "enabled": true
+    }
+  }
+}

@@ -1,0 +1,13 @@
+services:
+  maxcompute-data-agent:
+    build: .
+    container_name: maxcompute-data-agent
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - MCP_TRANSPORT=sse
+      - HOST=0.0.0.0
+      - PORT=8000

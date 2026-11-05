@@ -1,0 +1,703 @@
+# ==============================================================================
+# Semantic Layer Definition (语义层定义)
+# Target Database: Alibaba Cloud MaxCompute (Project: on_mc_prod)
+# Description: Standard Semantic Layer for Retail, B2B, DTC, Store Traffic, Member, and Inventory.
+# ==============================================================================
+
+version: "1.2.0"
+project: "on_mc_prod"
+engine: "maxcompute"
+description: "Retail & B2B Omnichannel Analytics Semantic Model"
+
+# ==============================================================================
+# 1. 维度模型 (Dimension Models)
+# ==============================================================================
+dimensions:
+  # ----------------------------------------------------------------------------
+  # 门店主数据维度 (Store Dimension)
+  # ----------------------------------------------------------------------------
+  - name: dim_store
+    label: "门店维度"
+    source_table: "mdm_dim_store_info"
+    description: "门店主数据维度表，涵盖B2B/DTC各渠道门店、行政区划、商圈、营业状态及面积信息"
+    primary_key: "store_code"
+    fields:
+      - name: store_code
+        label: "门店编码"
+        type: "string"
+        sql: "store_code"
+        description: "门店唯一业务编码 (如 S001, O001)"
+      - name: store_name
+        label: "门店名称(英文/代码)"
+        type: "string"
+        sql: "store_name"
+      - name: store_name_cn
+        label: "门店中文名称"
+        type: "string"
+        sql: "store_name_cn"
+        synonyms: ["门店", "店铺名称", "店名"]
+      - name: channel
+        label: "渠道"
+        type: "string"
+        sql: "channel"
+        synonyms: ["销售渠道", "业务渠道"]
+        allowed_values: ["B2B", "DTC", "EC", "RETAIL"]
+      - name: store_type
+        label: "门店类型"
+        type: "string"
+        sql: "store_type"
+        synonyms: ["业态", "店铺类型"]
+      - name: retail_store_type
+        label: "零售门店细分类型"
+        type: "string"
+        sql: "retail_store_type"
+      - name: store_tier
+        label: "门店等级"
+        type: "string"
+        sql: "store_tier"
+      - name: store_status
+        label: "门店营业状态"
+        type: "string"
+        sql: "store_status"
+      - name: enable
+        label: "是否启用"
+        type: "integer"
+        sql: "enable"
+        description: "1=启用, 0=停用"
+      - name: region
+        label: "大区"
+        type: "string"
+        sql: "region"
+        synonyms: ["销售大区", "地理大区"]
+      - name: province
+        label: "省份"
+        type: "string"
+        sql: "province"
+      - name: city
+        label: "城市"
+        type: "string"
+        sql: "city"
+      - name: city_tier
+        label: "城市线级"
+        type: "string"
+        sql: "city_tier"
+        synonyms: ["城市等级", "一线/新一线"]
+      - name: cluster
+        label: "城市群/商圈"
+        type: "string"
+        sql: "cluster"
+      - name: total_size
+        label: "门店总面积(㎡)"
+        type: "number"
+        sql: "total_size"
+      - name: foh
+        label: "前厅面积(㎡)"
+        type: "number"
+        sql: "foh"
+      - name: opening_date
+        label: "开店日期"
+        type: "date"
+        sql: "opening_date"
+      - name: closing_date
+        label: "闭店日期"
+        type: "date"
+        sql: "closing_date"
+    hierarchies:
+      - name: geo_hierarchy
+        label: "地理层级"
+        levels: ["region", "province", "city", "store_name_cn"]
+
+  # ----------------------------------------------------------------------------
+  # 商品主数据维度 (Product Dimension)
+  # ----------------------------------------------------------------------------
+  - name: dim_product
+    label: "商品与尺码维度"
+    source_table: "mdm_dim_product_size_info"
+    description: "商品主数据及SKU尺码维度，包含品类、系列、型号、鞋服性别、尺码及吊牌价"
+    primary_key: "sku"
+    fields:
+      - name: sku
+        label: "SKU编码"
+        type: "string"
+        sql: "ean_code"
+        description: "SKU唯一条码/EAN码"
+      - name: product_id
+        label: "SPU/商品ID"
+        type: "string"
+        sql: "product_id"
+      - name: product_name
+        label: "商品名称"
+        type: "string"
+        sql: "product_name"
+        synonyms: ["品名", "鞋款名称", "衣服名称"]
+      - name: category
+        label: "商品品类"
+        type: "string"
+        sql: "category"
+        synonyms: ["大类", "品类"]
+        allowed_values: ["Footwear", "Apparel", "Accessories"]
+      - name: model
+        label: "鞋型/型号"
+        type: "string"
+        sql: "model"
+        synonyms: ["鞋款", "款号", "Model"]
+      - name: vertical
+        label: "垂直系列"
+        type: "string"
+        sql: "vertical"
+        synonyms: ["系列", "运动线"]
+      - name: gender
+        label: "性别分类"
+        type: "string"
+        sql: "gender"
+        synonyms: ["适用性别", "男女款"]
+      - name: season
+        label: "季节/上市波段"
+        type: "string"
+        sql: "season"
+      - name: price
+        label: "吊牌零售价(RMB)"
+        type: "number"
+        sql: "price"
+        synonyms: ["原价", "吊牌价"]
+      - name: cn_size
+        label: "中国尺码(CN)"
+        type: "string"
+        sql: "cn_size"
+      - name: us_size
+        label: "美码(US)"
+        type: "string"
+        sql: "us_size"
+      - name: phase_in_date
+        label: "正式上市发售日期"
+        type: "date"
+        sql: "phase_in_date"
+        description: "官方上市发售日期 (用于偷跑合规核查与新品滞销判定)"
+      - name: drop_out_date
+        label: "正式退市下架日期"
+        type: "date"
+        sql: "drop_out_date"
+        description: "官方计划下市退架日期 (用于超期未下架合规核查)"
+      - name: special_product_series
+        label: "特殊限定系列"
+        type: "string"
+        sql: "special_product_series"
+    hierarchies:
+      - name: product_hierarchy
+        label: "商品品类层级"
+        levels: ["category", "vertical", "model", "sku"]
+
+  # ----------------------------------------------------------------------------
+  # 会员主数据维度 (Member Dimension)
+  # ----------------------------------------------------------------------------
+  - name: dim_member
+    label: "会员维度"
+    source_table: "mdm_dim_crm_members_info"
+    description: "全渠道 CRM 会员信息，打通 DTC、天猫、抖音等各端会员主数据"
+    primary_key: "member_uid"
+    fields:
+      - name: member_uid
+        label: "会员统一ID"
+        type: "string"
+        sql: "member_uid"
+      - name: register_channel
+        label: "注册渠道"
+        type: "string"
+        sql: "register_channel"
+        synonyms: ["入会渠道", "首绑渠道"]
+      - name: register_date
+        label: "注册日期"
+        type: "date"
+        sql: "register_date"
+      - name: gender_cn
+        label: "会员性别"
+        type: "string"
+        sql: "gender_cn"
+      - name: age
+        label: "年龄段"
+        type: "string"
+        sql: "age"
+      - name: city
+        label: "所在城市"
+        type: "string"
+        sql: "city"
+      - name: province
+        label: "所在省份"
+        type: "string"
+        sql: "province"
+      - name: is_employee
+        label: "是否员工"
+        type: "integer"
+        sql: "is_employee"
+      - name: suspected_scalper_customer
+        label: "是否疑似黄牛"
+        type: "integer"
+        sql: "suspected_scalper_customer"
+
+# ==============================================================================
+# 2. 语义模型 / 事实层 (Semantic Models & Metrics)
+# ==============================================================================
+semantic_models:
+  # ----------------------------------------------------------------------------
+  # 零售订单事实模型 (Retail Sales Orders)
+  # ----------------------------------------------------------------------------
+  - name: retail_sales_orders
+    label: "零售全渠道销售订单模型"
+    source_table: "dws_fact_retail_sales_order"
+    description: "全渠道零售订单 DWS 模型，预置交易状态判断与正向/退款交易口径"
+    default_filter: "is_valid_data = 1"
+    
+    joins:
+      - target_dimension: "dim_store"
+        join_type: "left"
+        on: "retail_sales_orders.store_code = dim_store.store_code"
+      - target_dimension: "dim_member"
+        join_type: "left"
+        on: "retail_sales_orders.member_uid = dim_member.member_uid"
+
+    time_dimensions:
+      - name: pay_date
+        label: "支付日期"
+        sql: "pay_date"
+        type: "date"
+        is_primary_time: true
+      - name: created_date
+        label: "下单日期"
+        sql: "created_date"
+        type: "date"
+
+    measures:
+      - name: gmv
+        label: "销售总实付金额(GMV)"
+        type: "sum"
+        sql: "total_paid"
+        unit: "CNY"
+        synonyms: ["销售额", "业绩", "实付金额", "营业额"]
+        format: "currency"
+
+      - name: discount_amount
+        label: "总折扣让利金额"
+        type: "sum"
+        sql: "discount_amount + coupon_discount_amount"
+        unit: "CNY"
+
+      - name: total_qty
+        label: "销售件数"
+        type: "sum"
+        sql: "total_qty_ordered"
+        unit: "件"
+        synonyms: ["销量", "销售数量"]
+
+      - name: order_count
+        label: "订单总量"
+        type: "count_distinct"
+        sql: "order_number"
+        synonyms: ["单量", "订单数"]
+
+      - name: valid_transaction_count
+        label: "成交交易笔数"
+        type: "sum"
+        sql: "CASE WHEN transaction = 1 THEN 1 WHEN transaction = -1 THEN -1 ELSE 0 END"
+        description: "正常下单计为 1 笔，整单退款计为 -1 笔"
+
+      - name: aov
+        label: "客单价 (AOV)"
+        type: "derived"
+        sql: "gmv / NULLIF(valid_transaction_count, 0)"
+        unit: "CNY/单"
+        synonyms: ["客单价", "AOV", "笔单价"]
+        format: "currency"
+
+      - name: ipo
+        label: "连带率 (IPO)"
+        type: "derived"
+        sql: "total_qty / NULLIF(valid_transaction_count, 0)"
+        unit: "件/单"
+        synonyms: ["连带率", "IPO", "单均件数"]
+        format: "decimal_2"
+
+      - name: discount_rate
+        label: "综合折扣率"
+        type: "derived"
+        sql: "gmv / NULLIF(gmv + discount_amount, 0)"
+        synonyms: ["折扣率", "平均折扣"]
+        format: "percentage"
+
+  # ----------------------------------------------------------------------------
+  # 门店月度销售目标事实模型 (Store Monthly Sales Target) - 预留/待定
+  # ----------------------------------------------------------------------------
+  - name: store_sales_target
+    label: "门店月度销售目标模型"
+    source_table: "dw_budget_store_sales_target_month"
+    description: "门店月度销售业绩预算与目标表 (DW待定，支持按门店与年月关联聚合)"
+    
+    joins:
+      - target_dimension: "dim_store"
+        join_type: "left"
+        on: "store_sales_target.store_code = dim_store.store_code"
+
+    time_dimensions:
+      - name: target_month
+        label: "目标年月"
+        sql: "month"
+        type: "string"
+        is_primary_time: true
+
+    measures:
+      - name: monthly_target
+        label: "月度销售目标额"
+        type: "sum"
+        sql: "monthly_target"
+        unit: "CNY"
+        format: "currency"
+
+  # ----------------------------------------------------------------------------
+  # B2B 批发/订货事实模型 (B2B Sales Orders)
+  # ----------------------------------------------------------------------------
+  - name: b2b_sales_orders
+    label: "B2B批发销售模型"
+    source_table: "dwd_fact_b2b_sales_order"
+    description: "B2B 经销商销售订单明细与汇总，用于经销商日常运营及业绩追踪"
+    default_filter: "status = 'complete'"
+
+    joins:
+      - target_dimension: "dim_store"
+        join_type: "left"
+        on: "b2b_sales_orders.store_code = dim_store.store_code"
+
+    time_dimensions:
+      - name: business_date
+        label: "业务核算日期"
+        sql: "fixed_org_created_date"
+        type: "date"
+        is_primary_time: true
+
+    measures:
+      - name: b2b_net_sales
+        label: "B2B销售实付金额"
+        type: "sum"
+        sql: "total_paid"
+        unit: "CNY"
+        synonyms: ["B2B销售额", "B2B业绩"]
+        format: "currency"
+
+      - name: b2b_subtotal
+        label: "B2B牌价金额"
+        type: "sum"
+        sql: "subtotal"
+        unit: "CNY"
+
+      - name: b2b_order_count
+        label: "B2B完成单量"
+        type: "count_distinct"
+        sql: "order_number"
+
+      - name: b2b_positive_order_count
+        label: "B2B正向有效单量"
+        type: "count_distinct"
+        sql: "CASE WHEN total_paid > 0 THEN order_number END"
+
+      - name: b2b_aov
+        label: "B2B平均客单价"
+        type: "derived"
+        sql: "b2b_net_sales / NULLIF(b2b_positive_order_count, 0)"
+        unit: "CNY/单"
+        format: "currency"
+
+  # ----------------------------------------------------------------------------
+  # B2B 批发订单商品明细模型 (B2B Sales Order Details - Deduplicated)
+  # ----------------------------------------------------------------------------
+  - name: b2b_sales_order_detail
+    label: "B2B批发订单明细模型 (按 order_number + sku 严格去重)"
+    source_table: "dwd_fact_b2b_sales_order_detail"
+    description: >
+      B2B批发商品行级明细事实模型，支持鞋服配品类、5大Vertical系列及款式(Model)动销拆解。
+      【重要数据治理规则】：底层数仓增量同步偶发重复写入（部分单号存在2倍或3倍的相同SKU记录），
+      在进行品类/货品/款型拆解统计时，必须按 (order_number, sku) 进行 ROW_NUMBER() 去重：
+      `ROW_NUMBER() OVER (PARTITION BY d.order_number, d.sku ORDER BY d.id DESC) AS rn`，并指定 `rn = 1`。
+    default_filter: "rn = 1"
+
+    joins:
+      - target_dimension: "dim_product"
+        join_type: "left"
+        on: "b2b_sales_order_detail.sku = dim_product.ean_code"
+      - target_model: "b2b_sales_orders"
+        join_type: "inner"
+        on: "b2b_sales_order_detail.order_number = b2b_sales_orders.order_number"
+
+    measures:
+      - name: b2b_item_sales_qty
+        label: "B2B商品销售件数 (去重)"
+        type: "sum"
+        sql: "quantity"
+        unit: "件"
+        synonyms: ["件数", "销量"]
+
+      - name: b2b_item_net_sales
+        label: "B2B商品实付销售额 (去重)"
+        type: "sum"
+        sql: "COALESCE(total_paid, row_total, 0)"
+        unit: "CNY"
+        synonyms: ["品类销售额", "商品销售额"]
+        format: "currency"
+
+      - name: b2b_shoes_sales
+        label: "B2B鞋类销售额 (去重)"
+        type: "sum"
+        sql: "CASE WHEN dim_product.category IN ('Shoes', 'Footwear') THEN COALESCE(b2b_sales_order_detail.total_paid, b2b_sales_order_detail.row_total, 0) ELSE 0 END"
+        unit: "CNY"
+        format: "currency"
+
+      - name: b2b_apparel_sales
+        label: "B2B服装销售额 (去重)"
+        type: "sum"
+        sql: "CASE WHEN dim_product.category = 'Apparel' THEN COALESCE(b2b_sales_order_detail.total_paid, b2b_sales_order_detail.row_total, 0) ELSE 0 END"
+        unit: "CNY"
+        format: "currency"
+
+      - name: b2b_accessories_sales
+        label: "B2B配件销售额 (去重)"
+        type: "sum"
+        sql: "CASE WHEN dim_product.category = 'Accessories' THEN COALESCE(b2b_sales_order_detail.total_paid, b2b_sales_order_detail.row_total, 0) ELSE 0 END"
+        unit: "CNY"
+        format: "currency"
+
+  # ----------------------------------------------------------------------------
+  # 全渠道商品级明细模型 (Omnichannel Sales Item Detail)
+  # ----------------------------------------------------------------------------
+  - name: channel_store_sales_detail
+    label: "全渠道商品销售明细模型"
+    source_table: "dws_fact_channel_store_sales_order_detail"
+    description: "融合 DTC 与 B2B 的行级明细模型，包含退款前(BR)、退款(Return)、退款后(AR)精细口径"
+
+    joins:
+      - target_dimension: "dim_store"
+        join_type: "left"
+        on: "channel_store_sales_detail.store_code = dim_store.store_code"
+      - target_dimension: "dim_product"
+        join_type: "left"
+        on: "channel_store_sales_detail.sku = dim_product.ean_code"
+      - target_dimension: "dim_member"
+        join_type: "left"
+        on: "channel_store_sales_detail.member_uid = dim_member.member_uid"
+
+    time_dimensions:
+      - name: order_date
+        label: "订单发生日期"
+        sql: "date"
+        type: "date"
+        is_primary_time: true
+      - name: pay_date
+        label: "支付日期"
+        sql: "pay_at"
+        type: "date"
+
+    measures:
+      - name: sales_qty
+        label: "销售件数"
+        type: "sum"
+        sql: "quantity"
+        unit: "件"
+
+      - name: item_revenue
+        label: "实收金额"
+        type: "sum"
+        sql: "total_paid"
+        unit: "CNY"
+
+      - name: br_revenue
+        label: "退款前销售额 (BR Revenue)"
+        type: "sum"
+        sql: "br_revenue"
+        unit: "CNY"
+        description: "Before-Return 原始总销售额"
+
+      - name: return_revenue
+        label: "退款总金额 (Return Revenue)"
+        type: "sum"
+        sql: "return_revenue"
+        unit: "CNY"
+
+      - name: ar_revenue
+        label: "实际净销售额 (AR Revenue)"
+        type: "sum"
+        sql: "ar_revenue"
+        unit: "CNY"
+        description: "After-Return 扣除退款后的真实净额"
+
+      - name: return_rate
+        label: "金额退款率"
+        type: "derived"
+        sql: "return_revenue / NULLIF(br_revenue, 0)"
+        synonyms: ["退款率", "退货率"]
+        format: "percentage"
+
+      - name: shoes_sales
+        label: "鞋类实付销售额"
+        type: "sum"
+        sql: "CASE WHEN dim_product.category IN ('Shoes', 'Footwear') THEN channel_store_sales_detail.total_paid ELSE 0 END"
+        unit: "CNY"
+
+      - name: apparel_sales
+        label: "服装实付销售额"
+        type: "sum"
+        sql: "CASE WHEN dim_product.category = 'Apparel' THEN channel_store_sales_detail.total_paid ELSE 0 END"
+        unit: "CNY"
+
+      - name: accessories_sales
+        label: "配件实付销售额"
+        type: "sum"
+        sql: "CASE WHEN dim_product.category = 'Accessories' THEN channel_store_sales_detail.total_paid ELSE 0 END"
+        unit: "CNY"
+
+      - name: first_sale_date
+        label: "商品首售日期"
+        type: "min"
+        sql: "channel_store_sales_detail.date"
+        description: "比对 dim_product.phase_in_date 查提前偷跑合规"
+
+      - name: last_sale_date
+        label: "商品末售日期"
+        type: "max"
+        sql: "channel_store_sales_detail.date"
+        description: "比对 dim_product.drop_out_date 查超期未下架合规"
+
+  # ----------------------------------------------------------------------------
+  # 门店客流模型 (Store Traffic) - 统一使用 outqty
+  # ----------------------------------------------------------------------------
+  - name: store_traffic
+    label: "门店客流模型"
+    source_table: "dws_fact_b2b_retail_store_traffic"
+    description: "门店出店客流与路过客流监控 (标准客流统一固定为 outqty)"
+
+    joins:
+      - target_dimension: "dim_store"
+        join_type: "left"
+        on: "store_traffic.store_code = dim_store.store_code"
+
+    time_dimensions:
+      - name: traffic_date
+        label: "客流日期"
+        sql: "date_day"
+        type: "date"
+        is_primary_time: true
+
+    measures:
+      - name: out_store_traffic
+        label: "出店客流人数 (Traffic)"
+        type: "sum"
+        sql: "outqty"
+        unit: "人次"
+        synonyms: ["客流", "出店人数", "客流量", "Traffic", "出店客流", "outqty"]
+        description: "标准客流统计口径：统一以出店人流 outqty 为基准"
+
+      - name: in_store_traffic
+        label: "进店客流人数"
+        type: "sum"
+        sql: "inqty"
+        unit: "人次"
+        synonyms: ["进店人数", "进店客流", "inqty"]
+
+      - name: pass_by_traffic
+        label: "路过客流人数"
+        type: "sum"
+        sql: "passby"
+        unit: "人次"
+        synonyms: ["路过人流", "过店客流", "passby"]
+
+      - name: capture_rate
+        label: "进店捕获率 / 进店率"
+        type: "derived"
+        sql: "out_store_traffic / NULLIF(pass_by_traffic, 0)"
+        synonyms: ["进店率", "捕获率"]
+        format: "percentage"
+
+  # ----------------------------------------------------------------------------
+  # 每日渠道库存模型 (Daily Channel Inventory)
+  # ----------------------------------------------------------------------------
+  - name: channel_inventory
+    label: "每日渠道库存模型"
+    source_table: "dwd_inventory_channel_day"
+    description: "按渠道、门店、SKU维度的每日日末库存快照"
+
+    joins:
+      - target_dimension: "dim_store"
+        join_type: "left"
+        on: "channel_inventory.store_code = dim_store.store_code"
+      - target_dimension: "dim_product"
+        join_type: "left"
+        on: "channel_inventory.sku = dim_product.ean_code"
+
+    time_dimensions:
+      - name: inventory_date
+        label: "库存快照日期"
+        sql: "date"
+        type: "date"
+        is_primary_time: true
+
+    measures:
+      - name: closing_inventory_qty
+        label: "期末实物库存数量"
+        type: "sum"
+        sql: "inventory"
+        unit: "件"
+        synonyms: ["库存数", "现存量", "在库量"]
+
+      - name: slow_seller_sku_stock_qty
+        label: "滞销品库存量 (Slow Sellers)"
+        type: "sum"
+        sql: >
+          CASE 
+            WHEN DATEDIFF(TO_DATE(channel_inventory.ds, 'yyyy-mm-dd'), TO_DATE(dim_product.phase_in_date, 'yyyy-mm-dd')) <= 90 
+             AND COALESCE(recent_15d_sales.sku_sales_qty, 0) = 0 
+            THEN channel_inventory.inventory 
+            ELSE 0 
+          END
+        description: "上市3个月内且近15天完全无销售记录的SKU库存件数"
+
+# ==============================================================================
+# 3. 跨模型复合核心指标 (Cross-Model Metric Definitions)
+# ==============================================================================
+composite_metrics:
+  - name: store_conversion_rate
+    label: "门店综合客流成交转化率 (CR)"
+    description: "成单量与出店客流的比值"
+    type: "ratio"
+    numerator: "retail_sales_orders.valid_transaction_count"
+    denominator: "store_traffic.out_store_traffic"
+    synonyms: ["转化率", "成交率", "客流转化率", "CR"]
+    format: "percentage"
+
+  - name: target_achievement_rate
+    label: "销售目标达成率 %"
+    description: "实际完成业绩占设定目标的比例"
+    type: "ratio"
+    numerator: "retail_sales_orders.gmv"
+    denominator: "store_sales_target.monthly_target"
+    synonyms: ["目标达成率", "达成率"]
+    format: "percentage"
+
+  - name: sell_through_rate
+    label: "售罄率 (STR %)"
+    description: "销售件数与采购总资源(销售+现有在库)的比值"
+    type: "derived"
+    sql: "channel_store_sales_detail.sales_qty / NULLIF(channel_store_sales_detail.sales_qty + channel_inventory.closing_inventory_qty, 0)"
+    synonyms: ["售罄率", "STR"]
+    format: "percentage"
+
+  - name: slow_seller_sku_ratio
+    label: "新品滞销品库存占比 %"
+    description: "滞销SKU库存件数占全盘库存件数的比例"
+    type: "ratio"
+    numerator: "channel_inventory.slow_seller_sku_stock_qty"
+    denominator: "channel_inventory.closing_inventory_qty"
+    format: "percentage"
+
+  - name: inventory_turnover_days
+    label: "库存周转预估天数"
+    description: "期末库存量与日均销售量的比值"
+    type: "ratio"
+    numerator: "channel_inventory.closing_inventory_qty"
+    denominator: "channel_store_sales_detail.sales_qty"
+    synonyms: ["周转天数", "售罄天数"]
+    format: "decimal_1"

@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Architecture &bull; MaxCompute Data Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #fafafa;
+      color: #111111;
+      letter-spacing: -0.012em;
+      -webkit-font-smoothing: antialiased;
+    }
+    .recon-card {
+      background: #ffffff;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+    }
+    .pill {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      padding: 2px 7px;
+      background: #f4f4f5;
+      border-radius: 4px;
+      color: #27272a;
+    }
+    .lang-btn.active {
+      background: #000000;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-[#e5e5e5] sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- On Running SVG -->
+        <a href="#" class="flex items-center gap-2.5">
+          <svg class="w-6 h-6 text-black" viewBox="0 0 54 54" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="On" role="img">
+            <path d="M36.281 11.384c-.056.058-.114.13-.17.188l-2.364 2.41-.057.058c-.057.072-.057.145.014.247a8.331 8.331 0 0 1 1.096 3.309c.257 2.409-.342 4.571-1.822 6.473-1.268 1.625-2.92 2.64-4.899 3.09-.911.204-1.837.218-2.762.117-1.524-.16-2.891-.726-4.116-1.655-1.766-1.335-2.862-3.105-3.318-5.311-.17-.813-.199-1.64-.128-2.453.171-1.901.883-3.585 2.15-5.022 1.21-1.379 2.692-2.278 4.443-2.685a8.03 8.03 0 0 1 2.635-.189 8.5 8.5 0 0 1 3.588 1.147c.142.087.2.029.285-.058l2.35-2.395c.056-.058.113-.13.185-.217l2.889 2.945.001.001Zm-5.342 7.4c.071-2.8-2.093-4.832-4.529-4.905-2.748-.073-4.798 2.25-4.798 4.76 0 2.57 2.122 4.79 4.67 4.746 2.507.03 4.6-2.076 4.656-4.6Zm3.605 19.391c.014 2.351 0 4.717 0 7.068v.32h-4.13v-.29c0-2.468.015-4.935 0-7.403 0-1.291-.44-2.423-1.366-3.323a3.827 3.827 0 0 0-2.208-1.06c-1.11-.16-2.121.117-3.018.799-.898.696-1.424 1.64-1.595 2.757-.086.537-.1 1.089-.1 1.64-.014 2.192 0 4.369 0 6.56v.305h-4.101v-.276c0-2.656-.029-5.326.014-7.982.029-1.408.47-2.743 1.196-3.962 1.21-2.032 2.934-3.338 5.198-3.875a8.414 8.414 0 0 1 2.178-.203c2.265.101 4.201 1.015 5.74 2.742 1.096 1.248 1.794 2.7 2.036 4.369.098.608.155 1.217.155 1.812"></path>
+          </svg>
+          <span class="w-[1px] h-3.5 bg-neutral-300"></span>
+          <span class="font-semibold text-sm tracking-tight">Data Agent</span>
+        </a>
+      </div>
+
+      <!-- Controls: Project Badge + Bilingual Switcher -->
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-mono text-neutral-400">on_mc_prod</span>
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+
+        <!-- Bilingual Switcher -->
+        <div class="flex items-center border border-neutral-200 rounded-full p-0.5 bg-neutral-100 text-[11px] font-mono ml-2">
+          <button onclick="setLang('en')" id="btn-en" class="lang-btn active px-2.5 py-0.5 rounded-full font-medium transition">EN</button>
+          <button onclick="setLang('zh')" id="btn-zh" class="lang-btn px-2.5 py-0.5 rounded-full font-medium transition text-neutral-600">中文</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-6xl mx-auto px-6 py-8 w-full flex-1 space-y-9">
+
+    <!-- Hero Title -->
+    <div>
+      <div class="text-[11px] font-mono uppercase tracking-wider text-neutral-400 font-semibold mb-1" data-en="Architecture &bull; Flow &bull; Tools" data-zh="系统架构 &bull; 数据流 &bull; 工具规范">Architecture &bull; Flow &bull; Tools</div>
+      <h1 class="text-3xl font-bold tracking-tight text-neutral-900" data-en="MaxCompute Data Agent" data-zh="MaxCompute 智能数据分析 Agent">MaxCompute Data Agent</h1>
+    </div>
+
+    <!-- Section 1: Architecture Pipeline (Top-to-Bottom Layered Architecture) -->
+    <div class="space-y-2.5">
+      <div class="text-xs font-mono uppercase tracking-wider text-neutral-400 font-semibold" data-en="1. Module Dependencies &amp; Data Pipeline" data-zh="1. 模块依赖关系与数据管道">1. Module Dependencies &amp; Data Pipeline</div>
+      
+      <div class="recon-card p-5 space-y-3">
+        
+        <!-- Tier 1: Client Hosts -->
+        <div class="border border-neutral-200 rounded-lg p-3 bg-neutral-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <span class="text-xs font-bold font-mono uppercase text-neutral-800" data-en="Client Hosts" data-zh="外部宿主 (Client Hosts)">Client Hosts</span>
+          <div class="flex flex-wrap items-center gap-2 text-xs font-mono">
+            <span class="px-2.5 py-1 bg-white rounded border border-neutral-200 text-neutral-800 font-medium">WorkBuddy AI (stdio)</span>
+            <span class="px-2.5 py-1 bg-white rounded border border-neutral-200 text-neutral-800 font-medium" data-en="Qianwen Work (SSE :8000)" data-zh="千问办公 (SSE :8000)">Qianwen Work (SSE :8000)</span>
+            <span class="px-2.5 py-1 bg-white rounded border border-neutral-200 text-neutral-800 font-medium">chat.py (CLI)</span>
+          </div>
+        </div>
+
+        <!-- Arrow Down to Tier 2 -->
+        <div class="flex justify-center items-center gap-1.5 py-0.5 text-neutral-300">
+          <span class="text-[10px] font-mono text-neutral-400 uppercase">MCP Protocol</span>
+          <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+        </div>
+
+        <!-- Tier 2: MCP Server (server.py) -->
+        <div class="border-2 border-neutral-900 rounded-lg p-3.5 bg-white space-y-2.5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-neutral-100">
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-bold text-neutral-900">server.py</span>
+              <span class="pill">MCPServer: maxcompute-data-agent</span>
+            </div>
+            <span class="text-[10px] font-mono text-neutral-400">TokenAuthMiddleware (Bearer Token)</span>
+          </div>
+
+          <!-- 5 Tools Inline Badges -->
+          <div class="flex flex-wrap gap-1.5 text-[11px] font-mono">
+            <span class="px-2 py-1 bg-neutral-100 rounded text-neutral-800 font-medium">search_semantic_catalog</span>
+            <span class="px-2 py-1 bg-neutral-100 rounded text-neutral-800 font-medium">get_dimension_values</span>
+            <span class="px-2 py-1 bg-neutral-100 rounded text-neutral-800 font-medium">list_tables</span>
+            <span class="px-2 py-1 bg-neutral-100 rounded text-neutral-800 font-medium">describe_table</span>
+            <span class="px-2 py-1 bg-neutral-100 rounded text-neutral-800 font-medium">execute_sql</span>
+          </div>
+        </div>
+
+        <!-- 3 Connecting Arrows Down to Tier 3 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-center text-neutral-400 py-0.5 text-[10px] font-mono">
+          <div class="flex items-center justify-center gap-1">
+            <span data-en="Calls" data-zh="调用">Calls</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+          </div>
+          <div class="flex items-center justify-center gap-1">
+            <span data-en="Validates" data-zh="校验">Validates</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+          </div>
+          <div class="flex items-center justify-center gap-1">
+            <span data-en="Executes" data-zh="执行">Executes</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+          </div>
+        </div>
+
+        <!-- Tier 3: Internal Engine & Logic -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs font-mono">
+          <div class="border border-neutral-200 rounded-lg p-2.5 bg-white flex items-center justify-between">
+            <span class="font-bold text-neutral-900">semantic_engine.py</span>
+            <span class="text-[10px] text-neutral-400" data-en="Catalog Search" data-zh="语义检索">Catalog Search</span>
+          </div>
+
+          <div class="border border-neutral-200 rounded-lg p-2.5 bg-white flex items-center justify-between">
+            <span class="font-bold text-neutral-900">guardrails.py</span>
+            <span class="text-[10px] text-neutral-400" data-en="Security &amp; Partitions" data-zh="只读 &amp; 分区硬拦截">Security &amp; Partitions</span>
+          </div>
+
+          <div class="border border-neutral-200 rounded-lg p-2.5 bg-white flex items-center justify-between">
+            <span class="font-bold text-neutral-900">PyODPS Driver</span>
+            <span class="text-[10px] text-neutral-400" data-en="Tunnel Reader" data-zh="数据隧道读取">Tunnel Reader</span>
+          </div>
+        </div>
+
+        <!-- 2 Connecting Arrows Down to Tier 4 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-center text-neutral-400 py-0.5 text-[10px] font-mono">
+          <div class="flex items-center justify-center gap-1">
+            <span data-en="Parses" data-zh="解析">Parses</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+          </div>
+          <div class="hidden md:block"></div>
+          <div class="flex items-center justify-center gap-1">
+            <span data-en="SQL Query" data-zh="查询">SQL Query</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+          </div>
+        </div>
+
+        <!-- Tier 4: Ground Truth & Storage -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs font-mono">
+          <div class="border border-neutral-200 rounded-lg p-2.5 bg-white flex items-center justify-between">
+            <span class="font-bold text-neutral-900">semantic_layer.yaml</span>
+            <span class="text-[10px] text-neutral-400">YAML</span>
+          </div>
+
+          <div class="border border-neutral-200 rounded-lg p-2.5 bg-white flex items-center justify-between">
+            <span class="font-bold text-neutral-900">.env</span>
+            <span class="text-[10px] text-neutral-400">Secrets</span>
+          </div>
+
+          <div class="border border-neutral-900 rounded-lg p-2.5 bg-neutral-900 text-white flex items-center justify-between">
+            <span class="font-bold text-neutral-100">MaxCompute</span>
+            <span class="text-[10px] text-emerald-400">on_mc_prod</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 2: 5 MCP Tools - 5 Clean Horizontal Strips (No Fluff) -->
+    <div class="space-y-3">
+      <div class="text-xs font-mono uppercase tracking-wider text-neutral-400 font-semibold" data-en="2. The 5 MCP Tools" data-zh="2. 5 个 MCP 工具规范">2. The 5 MCP Tools</div>
+
+      <!-- 5 Clean Horizontal Strips -->
+      <div class="space-y-2">
+        
+        <!-- Strip 1 -->
+        <div class="recon-card px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-neutral-400 transition">
+          <div class="md:w-64 shrink-0 space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+              <span class="font-mono text-xs font-bold text-neutral-900">search_semantic_catalog</span>
+              <span class="text-[10px] font-mono uppercase bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded font-semibold" data-en="Semantic" data-zh="语义对齐">Semantic</span>
+            </div>
+            <div class="text-[10px] font-mono text-neutral-400 pl-4">
+              via <span class="text-neutral-700">semantic_engine.py</span> &bull; <span class="text-neutral-700">semantic_layer.yaml</span>
+            </div>
+          </div>
+          <div class="text-xs text-neutral-600 flex-1 md:px-3" data-en="Resolves metric formulas, source tables, joins, and default filters from business terms." data-zh="根据业务关键词解析指标计算公式、底层物理表、推荐关联路径与默认过滤条件。">
+            Resolves metric formulas, source tables, joins, and default filters from business terms.
+          </div>
+          <div class="text-[11px] font-mono text-neutral-500 shrink-0 md:text-right" data-en="keyword, top_k &rarr; formulas, tables" data-zh="关键词, top_k &rarr; 指标公式与数据表">
+            keyword, top_k &rarr; formulas, tables
+          </div>
+        </div>
+
+        <!-- Strip 2 -->
+        <div class="recon-card px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-neutral-400 transition">
+          <div class="md:w-64 shrink-0 space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+              <span class="font-mono text-xs font-bold text-neutral-900">get_dimension_values</span>
+              <span class="text-[10px] font-mono uppercase bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded font-semibold" data-en="Enum" data-zh="枚举校验">Enum</span>
+            </div>
+            <div class="text-[10px] font-mono text-neutral-400 pl-4">
+              via <span class="text-neutral-700">semantic_engine.py</span> &bull; <span class="text-neutral-700">semantic_layer.yaml</span>
+            </div>
+          </div>
+          <div class="text-xs text-neutral-600 flex-1 md:px-3" data-en="Returns validated business enum values for dimension columns (e.g. channel, region)." data-zh="获取渠道、大区等维度字段的标准枚举取值列表，用于校验 WHERE 筛选。">
+            Returns validated business enum values for dimension columns (e.g. channel, region).
+          </div>
+          <div class="text-[11px] font-mono text-neutral-500 shrink-0 md:text-right" data-en="dim, field &rarr; allowed_values[]" data-zh="维度, 字段 &rarr; 枚举列表[]">
+            dim, field &rarr; allowed_values[]
+          </div>
+        </div>
+
+        <!-- Strip 3 -->
+        <div class="recon-card px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-neutral-400 transition">
+          <div class="md:w-64 shrink-0 space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span class="font-mono text-xs font-bold text-neutral-900">describe_table</span>
+              <span class="text-[10px] font-mono uppercase bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded font-semibold" data-en="Partition" data-zh="物理分区">Partition</span>
+            </div>
+            <div class="text-[10px] font-mono text-neutral-400 pl-4">
+              via <span class="text-neutral-700">PyODPS SDK</span> (table.schema &amp; partitions)
+            </div>
+          </div>
+          <div class="text-xs text-neutral-600 flex-1 md:px-3" data-en="Returns table column types and the latest 5 produced partition keys (e.g. pt='20261029')." data-zh="返回物理表字段类型，以及数仓实际已产出的最新 5 个业务分区。">
+            Returns table column types and the latest 5 produced partition keys (e.g. pt='20261029').
+          </div>
+          <div class="text-[11px] font-mono text-neutral-500 shrink-0 md:text-right" data-en="table_name &rarr; schema, pt[]" data-zh="表名 &rarr; 字段结构, 分区[]">
+            table_name &rarr; schema, pt[]
+          </div>
+        </div>
+
+        <!-- Strip 4 -->
+        <div class="recon-card px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-neutral-400 transition">
+          <div class="md:w-64 shrink-0 space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span class="font-mono text-xs font-bold text-neutral-900">execute_sql</span>
+              <span class="text-[10px] font-mono uppercase bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded font-semibold" data-en="Guarded SQL" data-zh="安全执行">Guarded SQL</span>
+            </div>
+            <div class="text-[10px] font-mono text-neutral-400 pl-4">
+              via <span class="text-neutral-700">guardrails.py</span> &bull; <span class="text-neutral-700">PyODPS Tunnel</span>
+            </div>
+          </div>
+          <div class="text-xs text-neutral-600 flex-1 md:px-3" data-en="Executes read-only SQL with partition checks, semantic filter checks, and auto LIMIT 100." data-zh="执行只读 SELECT 查询，强制校验分区过滤与语义口径，自动注入 LIMIT 100。">
+            Executes read-only SQL with partition checks, semantic filter checks, and auto LIMIT 100.
+          </div>
+          <div class="text-[11px] font-mono text-neutral-500 shrink-0 md:text-right" data-en="sql, max_rows &rarr; records[]" data-zh="SQL, 行数上限 &rarr; 数据集[]">
+            sql, max_rows &rarr; records[]
+          </div>
+        </div>
+
+        <!-- Strip 5 -->
+        <div class="recon-card px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-neutral-400 transition">
+          <div class="md:w-64 shrink-0 space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-neutral-400"></span>
+              <span class="font-mono text-xs font-bold text-neutral-900">list_tables</span>
+              <span class="text-[10px] font-mono uppercase bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded font-semibold" data-en="Catalog" data-zh="物理表目录">Catalog</span>
+            </div>
+            <div class="text-[10px] font-mono text-neutral-400 pl-4">
+              via <span class="text-neutral-700">PyODPS SDK</span> (odps.list_tables)
+            </div>
+          </div>
+          <div class="text-xs text-neutral-600 flex-1 md:px-3" data-en="Returns all physical table names in the MaxCompute project for open catalog discovery." data-zh="返回当前 MaxCompute 项目下的所有物理表名称，用于开放式探索。">
+            Returns all physical table names in the MaxCompute project for open catalog discovery.
+          </div>
+          <div class="text-[11px] font-mono text-neutral-500 shrink-0 md:text-right" data-en="() &rarr; table_names[]" data-zh="无入参 &rarr; 表名列表[]">
+            () &rarr; table_names[]
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 3: Real-World Realistic Workflow Example -->
+    <div class="space-y-3">
+      <div class="text-xs font-mono uppercase tracking-wider text-neutral-400 font-semibold" data-en="3. Execution Trace &bull; Top 5 Best-Selling Shoe Models" data-zh="3. 实战执行全流程 &bull; Top 5 热销鞋款排行">3. Execution Trace &bull; Top 5 Best-Selling Shoe Models</div>
+
+      <div class="recon-card p-5 space-y-4">
+        
+        <!-- User Query Banner -->
+        <div class="p-3 bg-neutral-50 border border-neutral-200 rounded-lg">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-[10px] font-mono uppercase bg-neutral-900 text-white px-2 py-0.5 rounded font-semibold" data-en="User Query" data-zh="用户提问">User Query</span>
+          </div>
+          <div class="text-sm font-semibold text-neutral-900" data-en="&ldquo;What were our top 5 best-selling footwear models last month by sales revenue and quantity?&rdquo;" data-zh="“上个月销售额排名前 5 的鞋类型号是哪些？各卖了多少双、平均单价是多少？”">
+            &ldquo;What were our top 5 best-selling footwear models last month by sales revenue and quantity?&rdquo;
+          </div>
+        </div>
+
+        <!-- 4 Step Flow -->
+        <div class="space-y-2.5 font-mono text-xs">
+          
+          <!-- Step 1 -->
+          <div class="p-3 border border-neutral-200 rounded-lg bg-white space-y-1">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full bg-neutral-900 text-white text-[10px] flex items-center justify-center font-bold">1</span>
+                <span class="font-bold text-neutral-900">search_semantic_catalog</span>
+                <span class="text-neutral-400 text-[11px] font-normal font-sans">(keyword="footwear model sales revenue")</span>
+              </div>
+              <span class="text-[10px] font-sans px-1.5 py-0.5 bg-neutral-100 rounded text-neutral-600" data-en="Metric Discovery" data-zh="口径对齐">Metric Discovery</span>
+            </div>
+            <div class="text-[11px] text-neutral-600 pl-6 space-y-0.5">
+              <div>&bull; <strong class="text-neutral-800" data-en="Product Dimension" data-zh="商品模型">Product Dimension</strong> &rarr; <code class="text-neutral-800">mdm_dim_product_size_info</code> (model: Cloudmonster, Cloudsurfer, Cloud 5...)</div>
+              <div>&bull; <strong class="text-neutral-800" data-en="Metrics" data-zh="度量指标">Metrics</strong> &rarr; Revenue = <code class="text-neutral-800">SUM(total_paid)</code>, Quantity = <code class="text-neutral-800">SUM(sales_qty)</code></div>
+              <div>&bull; <strong class="text-neutral-800" data-en="Join &amp; Filter" data-zh="关联与过滤">Join &amp; Filter</strong> &rarr; Join on <code class="text-neutral-800">sku</code>; Mandatory filter: <code class="text-neutral-800">is_valid_data = 1 AND category = 'Footwear'</code></div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="p-3 border border-neutral-200 rounded-lg bg-white space-y-1">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full bg-neutral-900 text-white text-[10px] flex items-center justify-center font-bold">2</span>
+                <span class="font-bold text-neutral-900">describe_table</span>
+                <span class="text-neutral-400 text-[11px] font-normal font-sans">(table_name="dws_fact_channel_store_sales_order_detail")</span>
+              </div>
+              <span class="text-[10px] font-sans px-1.5 py-0.5 bg-neutral-100 rounded text-neutral-600" data-en="Partition Check" data-zh="分区核验">Partition Check</span>
+            </div>
+            <div class="text-[11px] text-neutral-600 pl-6">
+              &bull; <strong class="text-neutral-800" data-en="Partition Key" data-zh="分区键">Partition Key</strong>: <code class="text-neutral-800">ds (YYYYMMDD)</code> &bull; <strong class="text-neutral-800" data-en="Target Month" data-zh="上月分区范围">Target Month</strong>: <code class="text-neutral-800">ds &gt;= '20240901' AND ds &lt;= '20240930'</code>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="p-3 border border-neutral-200 rounded-lg bg-white space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full bg-neutral-900 text-white text-[10px] flex items-center justify-center font-bold">3</span>
+                <span class="font-bold text-neutral-900">execute_sql</span>
+              </div>
+              <span class="text-[10px] font-sans px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded font-medium" data-en="Guardrails Passed" data-zh="护栏检查通过">Guardrails Passed</span>
+            </div>
+            <pre class="bg-neutral-900 text-neutral-100 p-3 rounded-lg text-xs font-mono leading-relaxed overflow-x-auto whitespace-pre">SELECT
+  p.model AS shoe_model,
+  SUM(o.total_paid) AS total_revenue,
+  SUM(o.sales_qty) AS units_sold,
+  ROUND(SUM(o.total_paid) / NULLIF(SUM(o.sales_qty), 0), 0) AS avg_unit_price
+FROM dws_fact_channel_store_sales_order_detail o
+JOIN mdm_dim_product_size_info p
+  ON o.sku = p.sku
+WHERE o.ds &gt;= '20240901'
+  AND o.ds &lt;= '20240930'
+  AND o.is_valid_data = 1
+  AND p.category = 'Footwear'
+GROUP BY
+  p.model
+ORDER BY
+  total_revenue DESC
+LIMIT 5;</pre>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="p-4 border border-neutral-200 rounded-lg bg-neutral-50 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-bold">4</span>
+                <span class="font-sans font-bold text-neutral-900" data-en="Final Answer Delivered to User" data-zh="最终向用户交付的结构化回答">Final Answer Delivered to User</span>
+              </div>
+              <span class="text-[10px] font-mono text-emerald-600 uppercase font-bold" data-en="&check; Formatted Output" data-zh="&check; 结构化表格">&check; Formatted Output</span>
+            </div>
+
+            <!-- Result Table -->
+            <div class="overflow-x-auto font-sans">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="border-b border-neutral-200 text-neutral-400 font-mono text-[11px]">
+                    <th class="py-1.5 px-3">#</th>
+                    <th class="py-1.5 px-3" data-en="Shoe Model" data-zh="鞋款系列 / 型号">Shoe Model</th>
+                    <th class="py-1.5 px-3 text-right" data-en="Total Revenue" data-zh="实付销售额">Total Revenue</th>
+                    <th class="py-1.5 px-3 text-right" data-en="Units Sold" data-zh="销量 (双)">Units Sold</th>
+                    <th class="py-1.5 px-3 text-right" data-en="Avg Unit Price" data-zh="平均单价">Avg Unit Price</th>
+                    <th class="py-1.5 px-3 text-center" data-en="Share of Top 5" data-zh="Top 5 销售占比">Share of Top 5</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-neutral-200 font-mono text-neutral-800">
+                  <tr>
+                    <td class="py-2 px-3 text-neutral-400">1</td>
+                    <td class="py-2 px-3 font-sans font-bold text-neutral-900">Cloudmonster</td>
+                    <td class="py-2 px-3 text-right font-bold text-neutral-900">&yen;5,820,000</td>
+                    <td class="py-2 px-3 text-right text-neutral-700">4,200</td>
+                    <td class="py-2 px-3 text-right text-neutral-500">&yen;1,385</td>
+                    <td class="py-2 px-3 text-center text-xs font-mono text-emerald-600 font-medium">31.3%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-neutral-400">2</td>
+                    <td class="py-2 px-3 font-sans font-bold text-neutral-900">Cloudsurfer</td>
+                    <td class="py-2 px-3 text-right font-bold text-neutral-900">&yen;4,150,000</td>
+                    <td class="py-2 px-3 text-right text-neutral-700">3,100</td>
+                    <td class="py-2 px-3 text-right text-neutral-500">&yen;1,338</td>
+                    <td class="py-2 px-3 text-center text-xs font-mono text-emerald-600 font-medium">22.3%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-neutral-400">3</td>
+                    <td class="py-2 px-3 font-sans font-bold text-neutral-900">Cloud 5</td>
+                    <td class="py-2 px-3 text-right font-bold text-neutral-900">&yen;3,600,000</td>
+                    <td class="py-2 px-3 text-right text-neutral-700">3,250</td>
+                    <td class="py-2 px-3 text-right text-neutral-500">&yen;1,107</td>
+                    <td class="py-2 px-3 text-center text-xs font-mono text-emerald-600 font-medium">19.3%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-neutral-400">4</td>
+                    <td class="py-2 px-3 font-sans font-bold text-neutral-900">Cloudtilt</td>
+                    <td class="py-2 px-3 text-right font-bold text-neutral-900">&yen;2,950,000</td>
+                    <td class="py-2 px-3 text-right text-neutral-700">2,100</td>
+                    <td class="py-2 px-3 text-right text-neutral-500">&yen;1,404</td>
+                    <td class="py-2 px-3 text-center text-xs font-mono text-emerald-600 font-medium">15.8%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-neutral-400">5</td>
+                    <td class="py-2 px-3 font-sans font-bold text-neutral-900">Cloudrunner</td>
+                    <td class="py-2 px-3 text-right font-bold text-neutral-900">&yen;2,100,000</td>
+                    <td class="py-2 px-3 text-right text-neutral-700">1,850</td>
+                    <td class="py-2 px-3 text-right text-neutral-500">&yen;1,135</td>
+                    <td class="py-2 px-3 text-center text-xs font-mono text-emerald-600 font-medium">11.3%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Minimal Footer -->
+  <footer class="border-t border-[#e5e5e5] bg-white py-4">
+    <div class="max-w-6xl mx-auto px-6 flex items-center justify-between text-[11px] text-neutral-400 font-mono">
+      <span data-en="MaxCompute Data Agent &bull; 5 MCP Tools" data-zh="MaxCompute Data Agent &bull; 5 个 MCP 工具">MaxCompute Data Agent &bull; 5 MCP Tools</span>
+      <span>server.py &bull; semantic_layer.yaml &bull; guardrails.py</span>
+    </div>
+  </footer>
+
+  <!-- Language Switcher Script -->
+  <script>
+    let currentLang = 'en';
+
+    function setLang(lang) {
+      currentLang = lang;
+
+      // Update button active states
+      document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+      document.getElementById('btn-en').classList.toggle('text-neutral-600', lang !== 'en');
+      document.getElementById('btn-zh').classList.toggle('active', lang === 'zh');
+      document.getElementById('btn-zh').classList.toggle('text-neutral-600', lang !== 'zh');
+
+      // Update all translatable elements
+      document.querySelectorAll('[data-en]').forEach(el => {
+        const text = el.getAttribute('data-' + lang);
+        if (text) {
+          el.innerHTML = text;
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>
