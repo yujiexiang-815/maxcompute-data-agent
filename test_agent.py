@@ -7,11 +7,14 @@ and safe SQL execution.
 from __future__ import annotations
 
 import unittest
+from starlette.testclient import TestClient
+
 from server import (
     search_semantic_catalog,
     get_dimension_values,
     get_table_metadata,
     execute_safe_sql,
+    create_sse_app,
 )
 
 
@@ -87,6 +90,23 @@ class TestDataAgent(unittest.TestCase):
         self.assertFalse(res.get("success"))
         self.assertEqual(res.get("error_type"), "GuardrailViolation")
         self.assertIn("语义护栏拦截", res.get("message", ""))
+
+    def test_10_sse_app_endpoints(self):
+        """Test SSE server endpoints: GET /health, POST /sse guidance, and GET /sse route existence."""
+        app = create_sse_app(host="127.0.0.1")
+        client = TestClient(app, base_url="http://127.0.0.1:8000")
+
+        # 1. GET /health should succeed with HTTP 200
+        health_resp = client.get("/health")
+        self.assertEqual(health_resp.status_code, 200)
+        self.assertEqual(health_resp.json().get("status"), "ok")
+        print("[Test 10] Health check OK:", health_resp.json())
+
+        # 2. POST /sse should return 405 Method Not Allowed with helpful hint
+        post_sse_resp = client.post("/sse")
+        self.assertEqual(post_sse_resp.status_code, 405)
+        self.assertIn("The /sse endpoint only accepts HTTP GET", post_sse_resp.json().get("message", ""))
+        print("[Test 10] POST /sse guidance OK:", post_sse_resp.json().get("message"))
 
 
 if __name__ == "__main__":

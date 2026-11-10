@@ -262,6 +262,22 @@ maxcompute_sql_execute = execute_sql
 # ------------------------------------------------------------------------------
 class TokenAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Health check endpoint is always public for monitoring/probes
+        if request.url.path == "/health":
+            return await call_next(request)
+
+        # Clear guidance if client mistakenly POSTs to /sse
+        if request.url.path == "/sse" and request.method == "POST":
+            return JSONResponse(
+                {
+                    "error": "Method Not Allowed",
+                    "message": "The /sse endpoint only accepts HTTP GET to establish an event stream.",
+                    "test_command": "curl -N http://127.0.0.1:8000/sse",
+                    "hint": "Client messages (tool calls / JSON-RPC) should be POSTed to /messages/?session_id=...",
+                },
+                status_code=405,
+            )
+
         # Only enforce auth if MCP_AUTH_TOKEN is configured
         if MCP_AUTH_TOKEN:
             auth_header = request.headers.get("Authorization", "")
@@ -274,6 +290,24 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
                     status_code=401,
                 )
         return await call_next(request)
+
+
+def create_sse_app(host: str = "0.0.0.0"):
+    """Create Starlette app for SSE transport with /health probe and auth."""
+    app = mcp.sse_app(host=host)
+
+    async def health_endpoint(request: Request) -> JSONResponse:
+        return JSONResponse({
+            "status": "ok",
+            "service": "maxcompute-data-agent",
+            "transport": "sse",
+            "sse_endpoint": "/sse",
+            "messages_endpoint": "/messages/",
+        })
+
+    app.add_route("/health", health_endpoint, methods=["GET"])
+    app.add_middleware(TokenAuthMiddleware)
+    return app
 
 
 # ------------------------------------------------------------------------------
@@ -307,9 +341,7 @@ def main() -> None:
         else:
             print("⚠️ Running without MCP_AUTH_TOKEN. Publicly accessible.")
 
-        app = mcp.sse_app(host=args.host)
-        # Attach authentication middleware
-        app.add_middleware(TokenAuthMiddleware)
+        app = create_sse_app(host=args.host)
         uvicorn.run(app, host=args.host, port=args.port)
     else:
         # stdio mode
