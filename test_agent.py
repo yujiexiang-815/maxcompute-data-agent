@@ -7,6 +7,7 @@ and safe SQL execution.
 from __future__ import annotations
 
 import unittest
+from uuid import uuid4
 from starlette.testclient import TestClient
 
 from server import (
@@ -107,6 +108,44 @@ class TestDataAgent(unittest.TestCase):
         self.assertEqual(post_sse_resp.status_code, 405)
         self.assertIn("The /sse endpoint only accepts HTTP GET", post_sse_resp.json().get("message", ""))
         print("[Test 10] POST /sse guidance OK:", post_sse_resp.json().get("message"))
+
+    def test_11_smart_session_fallback(self):
+        """Test that stale/expired session IDs are transparently re-routed to active SSE session."""
+        from mcp.server.sse import SseServerTransport
+
+        app = create_sse_app(host="127.0.0.1")
+        client = TestClient(app, base_url="http://127.0.0.1:8000")
+
+        # Find transport
+        transport = None
+        for r in app.routes:
+            if hasattr(r, "app") and hasattr(r.app, "__self__"):
+                if isinstance(r.app.__self__, SseServerTransport):
+                    transport = r.app.__self__
+                    break
+
+        self.assertIsNotNone(transport)
+
+        # Mock an active session
+        active_id = uuid4()
+        class MockWriter:
+            async def send(self, msg):
+                pass
+        transport._read_stream_writers[active_id] = MockWriter()
+
+        # Check health reflects active sessions
+        health_resp = client.get("/health")
+        self.assertEqual(health_resp.json().get("active_sessions"), 1)
+
+        # POST with a stale/dead session ID
+        dead_session_id = uuid4().hex
+        post_resp = client.post(
+            f"/messages/?session_id={dead_session_id}",
+            json={"jsonrpc": "2.0", "method": "ping", "id": 1},
+        )
+        # Should NOT return 404 "Could not find session"; it accepts (202) because of fallback
+        self.assertEqual(post_resp.status_code, 202)
+        print("[Test 11] Stale session fallback passed: 202 Accepted instead of 404")
 
 
 if __name__ == "__main__":

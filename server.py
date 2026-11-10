@@ -14,6 +14,8 @@ import sys
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
+from uuid import UUID
 
 # Ensure user site-packages is included
 import site
@@ -22,6 +24,7 @@ for p in site.getsitepackages() + [site.getusersitepackages()]:
         sys.path.insert(0, p)
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.sse import SseServerTransport
 from odps import ODPS
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -258,9 +261,13 @@ maxcompute_sql_execute = execute_sql
 
 
 # ------------------------------------------------------------------------------
-# 4. Bearer Token Auth Middleware (For SSE Remote Deployment)
+# 4. Bearer Token Auth & Smart Session Fallback Middleware
 # ------------------------------------------------------------------------------
-class TokenAuthMiddleware(BaseHTTPMiddleware):
+class SmartSessionMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, transport: SseServerTransport | None = None):
+        super().__init__(app)
+        self.transport = transport
+
     async def dispatch(self, request: Request, call_next):
         # Health check endpoint is always public for monitoring/probes
         if request.url.path == "/health":
@@ -289,24 +296,63 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
                     {"error": "Unauthorized: Invalid or missing Bearer token"},
                     status_code=401,
                 )
+
+        # Smart Session Fallback for Qianwen / Web Clients:
+        # If client posts to /messages/ with a stale, missing, or invalidated session_id,
+        # but there is an active SSE session alive, transparently re-route to prevent 404
+        # and avoid forcing the user to abandon their current conversation.
+        if request.url.path.startswith("/messages") and request.method == "POST":
+            if self.transport and self.transport._read_stream_writers:
+                session_id_param = request.query_params.get("session_id")
+                is_valid_active = False
+                if session_id_param:
+                    try:
+                        parsed_uuid = UUID(hex=session_id_param)
+                        if parsed_uuid in self.transport._read_stream_writers:
+                            is_valid_active = True
+                    except ValueError:
+                        pass
+
+                if not is_valid_active:
+                    latest_session_id = list(self.transport._read_stream_writers.keys())[-1]
+                    # Transparently rewrite query string in ASGI scope to point to the live session
+                    query_dict = dict(request.query_params)
+                    query_dict["session_id"] = latest_session_id.hex
+                    new_qs = urlencode(query_dict).encode("latin-1")
+                    request.scope["query_string"] = new_qs
+                    print(
+                        f"🔄 [Session Fallback] Stale session '{session_id_param}' seamlessly routed "
+                        f"to active session '{latest_session_id.hex}' (prevented 404 / dialogue reset)"
+                    )
+
         return await call_next(request)
 
 
 def create_sse_app(host: str = "0.0.0.0"):
-    """Create Starlette app for SSE transport with /health probe and auth."""
+    """Create Starlette app for SSE transport with /health probe, auth, and smart session fallback."""
     app = mcp.sse_app(host=host)
 
+    # Locate SseServerTransport instance inside mount routes
+    transport: SseServerTransport | None = None
+    for r in app.routes:
+        if hasattr(r, "app") and hasattr(r.app, "__self__"):
+            if isinstance(r.app.__self__, SseServerTransport):
+                transport = r.app.__self__
+                break
+
     async def health_endpoint(request: Request) -> JSONResponse:
+        active_sessions_count = len(transport._read_stream_writers) if transport else 0
         return JSONResponse({
             "status": "ok",
             "service": "maxcompute-data-agent",
             "transport": "sse",
+            "active_sessions": active_sessions_count,
             "sse_endpoint": "/sse",
             "messages_endpoint": "/messages/",
         })
 
     app.add_route("/health", health_endpoint, methods=["GET"])
-    app.add_middleware(TokenAuthMiddleware)
+    app.add_middleware(SmartSessionMiddleware, transport=transport)
     return app
 
 
@@ -342,7 +388,8 @@ def main() -> None:
             print("⚠️ Running without MCP_AUTH_TOKEN. Publicly accessible.")
 
         app = create_sse_app(host=args.host)
-        uvicorn.run(app, host=args.host, port=args.port)
+        # Keep-alive timeout 3600s prevents connection drops from idle network
+        uvicorn.run(app, host=args.host, port=args.port, timeout_keep_alive=3600)
     else:
         # stdio mode
         mcp.run(transport="stdio")
