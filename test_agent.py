@@ -16,6 +16,7 @@ from server import (
     get_table_metadata,
     execute_safe_sql,
     create_sse_app,
+    create_streamable_http_app,
 )
 
 
@@ -146,6 +147,36 @@ class TestDataAgent(unittest.TestCase):
         # Should NOT return 404 "Could not find session"; it accepts (202) because of fallback
         self.assertEqual(post_resp.status_code, 202)
         print("[Test 11] Stale session fallback passed: 202 Accepted instead of 404")
+
+    def test_12_streamable_http_app_endpoints(self):
+        """Test Streamable HTTP server endpoints: /health probe and /mcp initialization."""
+        app = create_streamable_http_app(host="127.0.0.1", streamable_http_path="/mcp")
+        with TestClient(app, base_url="http://127.0.0.1:8000") as client:
+            # 1. GET /health
+            health_resp = client.get("/health")
+            self.assertEqual(health_resp.status_code, 200)
+            self.assertEqual(health_resp.json().get("transport"), "streamable-http")
+            print("[Test 12] Streamable HTTP /health check OK:", health_resp.json())
+
+            # 2. POST /mcp initialization
+            init_payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "test-agent", "version": "1.0.0"},
+                },
+            }
+            resp = client.post(
+                "/mcp",
+                json=init_payload,
+                headers={"Accept": "application/json, text/event-stream"},
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("mcp-session-id", resp.headers)
+            print("[Test 12] Streamable HTTP initialize OK, session:", resp.headers.get("mcp-session-id"))
 
 
 if __name__ == "__main__":

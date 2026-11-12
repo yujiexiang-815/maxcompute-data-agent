@@ -25,6 +25,7 @@ for p in site.getsitepackages() + [site.getusersitepackages()]:
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.sse import SseServerTransport
+from mcp.server.transport_security import TransportSecuritySettings
 from odps import ODPS
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -356,31 +357,91 @@ def create_sse_app(host: str = "0.0.0.0"):
     return app
 
 
+class StreamableHttpAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Health check endpoint is always public for monitoring/probes
+        if request.url.path == "/health":
+            return await call_next(request)
+
+        # Enforce auth if MCP_AUTH_TOKEN is configured
+        if MCP_AUTH_TOKEN:
+            auth_header = request.headers.get("Authorization", "")
+            expected = f"Bearer {MCP_AUTH_TOKEN}"
+            token_param = request.query_params.get("token", "")
+            if auth_header != expected and token_param != MCP_AUTH_TOKEN:
+                return JSONResponse(
+                    {"error": "Unauthorized: Invalid or missing Bearer token"},
+                    status_code=401,
+                )
+
+        return await call_next(request)
+
+
+def create_streamable_http_app(
+    host: str = "0.0.0.0",
+    streamable_http_path: str = "/mcp",
+):
+    """Create Starlette app for Streamable HTTP transport with /health probe and auth."""
+    # Disable DNS rebinding check by default so reverse proxies and custom domains work out-of-the-box
+    security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    app = mcp.streamable_http_app(
+        host=host,
+        streamable_http_path=streamable_http_path,
+        transport_security=security,
+    )
+
+    async def health_endpoint(request: Request) -> JSONResponse:
+        return JSONResponse({
+            "status": "ok",
+            "service": "maxcompute-data-agent",
+            "transport": "streamable-http",
+            "endpoint": streamable_http_path,
+        })
+
+    app.add_route("/health", health_endpoint, methods=["GET"])
+    app.add_middleware(StreamableHttpAuthMiddleware)
+    return app
+
+
 # ------------------------------------------------------------------------------
-# 5. Entrypoint: stdio or SSE server
+# 5. Entrypoint: stdio, SSE, or Streamable HTTP server
 # ------------------------------------------------------------------------------
 def main() -> None:
     parser = argparse.ArgumentParser(description="MaxCompute Data Agent MCP Server")
     parser.add_argument(
         "--transport",
-        choices=["stdio", "sse"],
+        choices=["stdio", "sse", "streamable-http", "http"],
         default=os.getenv("MCP_TRANSPORT", "stdio"),
-        help="MCP Transport protocol: 'stdio' for local CLI/IDE, 'sse' for remote/Qianwen",
+        help="MCP Transport protocol: 'stdio' for local CLI/IDE, 'sse' for remote/Qianwen, 'streamable-http' (or 'http') for single-endpoint HTTP Streaming",
+    )
+    parser.add_argument(
+        "--path",
+        default=os.getenv("MCP_PATH", "/mcp"),
+        help="Endpoint path for Streamable HTTP mode (default: /mcp)",
     )
     parser.add_argument(
         "--host",
         default=os.getenv("HOST", "0.0.0.0"),
-        help="Bind host for SSE mode (default 0.0.0.0)",
+        help="Bind host for HTTP/SSE mode (default 0.0.0.0)",
     )
     parser.add_argument(
         "--port",
         type=int,
         default=int(os.getenv("PORT", "8000")),
-        help="Bind port for SSE mode (default 8000)",
+        help="Bind port for HTTP/SSE mode (default 8000)",
     )
     args = parser.parse_args()
 
-    if args.transport == "sse":
+    if args.transport in ("streamable-http", "http"):
+        print(f"🚀 Starting MaxCompute MCP Server in Streamable HTTP mode on http://{args.host}:{args.port}{args.path}")
+        if MCP_AUTH_TOKEN:
+            print("🔒 Bearer Token authentication is enabled.")
+        else:
+            print("⚠️ Running without MCP_AUTH_TOKEN. Publicly accessible.")
+
+        app = create_streamable_http_app(host=args.host, streamable_http_path=args.path)
+        uvicorn.run(app, host=args.host, port=args.port, timeout_keep_alive=3600)
+    elif args.transport == "sse":
         print(f"🚀 Starting MaxCompute MCP Server in SSE mode on http://{args.host}:{args.port}/sse")
         if MCP_AUTH_TOKEN:
             print("🔒 Bearer Token authentication is enabled.")

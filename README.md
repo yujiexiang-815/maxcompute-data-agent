@@ -93,7 +93,14 @@ python3 test_agent.py
   python3 server.py --transport stdio
   ```
 
-- **远程 SSE 模式**（供千问办公 / 云端多端接入）：
+- **Streamable HTTP 模式（推荐云端部署 / 单一端点标准协议）**：
+  ```bash
+  export MCP_AUTH_TOKEN="your_secure_bearer_token"
+  # 启动后对外提供单一标准 HTTP 流式端点 http://<host>:8000/mcp
+  python3 server.py --transport streamable-http --host 0.0.0.0 --port 8000
+  ```
+
+- **远程 SSE 模式**（供千问办公 / 传统 SSE 客户端接入）：
   ```bash
   export MCP_AUTH_TOKEN="your_secure_bearer_token"
   python3 server.py --transport sse --host 0.0.0.0 --port 8000
